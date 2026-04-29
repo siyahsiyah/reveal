@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>REVEAL</title>
+<!-- ⚠️  Render.com'a deploy ettikten sonra aşağıdaki URL'yi güncelle -->
+<script src="https://reveal-backend-ivbz.onrender.com"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{--purple:#6B2FD4;--purple-light:#9B6FE4;--purple-dim:rgba(107,47,212,0.35);--bg:#0D0D0D;--card:#141414;--border:rgba(255,255,255,0.08)}
+html,body{height:100%;background:#0D0D0D;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif;color:#fff}
+
+/* ── LAYOUT ── */
+.app{max-width:430px;margin:0 auto;height:100dvh;display:flex;flex-direction:column;position:relative;overflow:hidden;background:var(--bg)}
+
+/* ── SCREENS ── */
+.screen{position:absolute;inset:0;display:none;flex-direction:column;overflow:hidden}
+.screen.active{display:flex}
+.bg-glow{position:absolute;inset:0;background:radial-gradient(ellipse 70% 60% at 50% 40%,rgba(100,30,220,0.14) 0%,transparent 70%);pointer-events:none}
+
+/* ── STATUS BAR ── */
+.status-bar{padding:env(safe-area-inset-top,14px) 24px 10px;display:flex;justify-content:space-between;align-items:flex-end;flex-shrink:0;min-height:50px}
+.status-bar .time{font-size:15px;font-weight:600}
+.conn-dot{width:7px;height:7px;border-radius:50%;background:#555;display:inline-block;margin-right:5px;transition:background 0.3s}
+.conn-dot.online{background:#3FD47B}
+.conn-dot.error{background:#E24B4A}
+
+/* ── ANIMATIONS ── */
+@keyframes pulse-out{0%{transform:scale(1);opacity:.6}100%{transform:scale(1.7);opacity:0}}
+@keyframes dot-pulse{0%,80%,100%{opacity:.2;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}
+@keyframes fade-up{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pop-in{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes appear{from{opacity:0}to{opacity:1}}
+@keyframes glow-pulse{0%,100%{box-shadow:0 0 0 0 rgba(107,47,212,0)}50%{box-shadow:0 0 28px 6px rgba(107,47,212,.35)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── SHARED ── */
+.section-label{font-size:11px;letter-spacing:.22em;color:#5B3FA0;font-weight:500;text-transform:uppercase;margin-bottom:10px}
+.btn-primary{width:100%;background:linear-gradient(135deg,#6B2FD4,#4A1FA8);border:none;color:#fff;padding:16px;border-radius:16px;font-size:15px;font-weight:500;cursor:pointer;font-family:inherit;transition:opacity .2s}
+.btn-primary:disabled{opacity:.45;cursor:default}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:rgba(255,255,255,.4);padding:14px;border-radius:16px;font-size:14px;cursor:pointer;font-family:inherit;width:100%;margin-top:10px}
+.toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#1C1040;border:1px solid var(--purple-dim);border-radius:100px;padding:10px 22px;font-size:13px;color:rgba(255,255,255,.85);z-index:999;opacity:0;transition:opacity .3s;white-space:nowrap;pointer-events:none}
+.toast.show{opacity:1}
+
+/* ── S1: SPLASH ── */
+#s1{align-items:center;justify-content:center;gap:0}
+#s1 .mask{font-size:90px;filter:drop-shadow(0 0 32px rgba(140,60,255,.5));margin-bottom:32px}
+#s1 .brand{font-size:11px;letter-spacing:.35em;color:#5B3FA0;font-weight:500;text-transform:uppercase;margin-bottom:16px}
+#s1 .tagline{font-size:22px;font-weight:300;line-height:1.5;text-align:center;padding:0 40px;margin-bottom:60px}
+#s1 .cta{background:transparent;border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.7);padding:14px 52px;border-radius:100px;font-size:14px;letter-spacing:.08em;cursor:pointer;font-family:inherit;transition:all .2s}
+#s1 .cta:hover{border-color:var(--purple-dim);color:#fff}
+
+/* ── S2: MASK SELECTION ── */
+#s2 .header{padding:24px 24px 12px;flex-shrink:0}
+#s2 .header h2{font-size:20px;font-weight:300;color:#fff;margin-top:6px}
+#s2 .mask-grid{padding:8px 16px;display:grid;grid-template-columns:1fr 1fr;gap:10px;overflow-y:auto;flex:1}
+.mask-card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:18px 14px;cursor:pointer;transition:all .2s}
+.mask-card.selected{border-color:rgba(107,47,212,.75);background:#1C1030}
+.mask-card .mi{font-size:28px;margin-bottom:8px}
+.mask-card .mn{color:#fff;font-size:14px;font-weight:500;margin-bottom:4px}
+.mask-card .md{color:rgba(255,255,255,.35);font-size:11px;line-height:1.4}
+#s2 .footer{padding:14px 20px 32px;flex-shrink:0}
+#mask-btn{width:100%;padding:16px;border-radius:16px;font-size:15px;cursor:pointer;font-family:inherit;background:rgba(107,47,212,.12);border:1px solid rgba(107,47,212,.25);color:rgba(255,255,255,.3);pointer-events:none;transition:all .3s}
+#mask-btn.on{background:linear-gradient(135deg,#6B2FD4,#4A1FA8);border:none;color:#fff;pointer-events:auto}
+
+/* ── S3: SPARK ── */
+#s3{padding:0;justify-content:center}
+#s3 .inner{padding:0 24px;width:100%}
+.q-card{background:var(--card);border:1px solid var(--border);border-radius:22px;padding:28px 22px;margin-bottom:22px}
+.q-card p{font-size:19px;font-weight:300;line-height:1.55;text-align:center}
+#spark-ta{width:100%;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;color:#fff;font-size:14px;resize:none;height:96px;font-family:inherit;outline:none;line-height:1.5;transition:border-color .2s}
+#spark-ta:focus{border-color:var(--purple-dim)}
+#spark-ta::placeholder{color:rgba(255,255,255,.22)}
+.char-row{display:flex;justify-content:flex-end;margin:6px 0 28px;font-size:12px;color:rgba(255,255,255,.22)}
+
+/* ── S4: SEARCHING ── */
+#s4{align-items:center;justify-content:center;gap:0}
+.pulse-wrap{position:relative;width:120px;height:120px;margin-bottom:36px}
+.pr{position:absolute;border:1px solid rgba(107,47,212,.3);border-radius:50%}
+.pr.r1{inset:-22px;animation:pulse-out 2.2s ease-out infinite}
+.pr.r2{inset:-11px;animation:pulse-out 2.2s ease-out infinite .55s}
+.pulse-inner{width:120px;height:120px;background:var(--card);border:1px solid var(--purple-dim);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:48px}
+.search-txt{font-size:18px;font-weight:300;line-height:1.65;text-align:center;margin-bottom:18px}
+.dl{display:flex;gap:5px;justify-content:center}
+.dl span{width:5px;height:5px;border-radius:50%;background:var(--purple)}
+.dl span:nth-child(1){animation:dot-pulse 1.4s ease-in-out infinite}
+.dl span:nth-child(2){animation:dot-pulse 1.4s ease-in-out infinite .2s}
+.dl span:nth-child(3){animation:dot-pulse 1.4s ease-in-out infinite .4s}
+#s4 .cancel{position:absolute;bottom:40px;background:transparent;border:none;color:rgba(255,255,255,.3);font-size:13px;cursor:pointer;font-family:inherit}
+
+/* ── S5: MATCHED ── */
+#s5{align-items:center;justify-content:center}
+#s5 .inner{padding:0 28px;width:100%;text-align:center}
+#s5 .avatar{width:96px;height:96px;border-radius:50%;background:var(--card);border:2px solid var(--purple-dim);margin:0 auto 20px;display:flex;align-items:center;justify-content:center;font-size:42px;animation:glow-pulse 2.5s ease-in-out infinite}
+#s5 .mname{font-size:24px;font-weight:300;margin-bottom:6px}
+#s5 .msub{font-size:13px;color:rgba(255,255,255,.35);margin-bottom:24px}
+.spark-box{background:rgba(107,47,212,.1);border:1px solid rgba(107,47,212,.25);border-radius:14px;padding:14px 18px;margin-bottom:28px;text-align:left}
+.spark-box .sl{font-size:11px;color:rgba(107,47,212,.8);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px}
+.spark-box .st{font-size:14px;color:rgba(255,255,255,.72);line-height:1.55;font-style:italic}
+
+/* ── S6: CHAT (main) ── */
+#s6{background:var(--bg)}
+.chat-hdr{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.chat-hdr .left{display:flex;align-items:center;gap:12px}
+.hdr-avatar{width:38px;height:38px;border-radius:50%;background:#1A1040;border:1px solid var(--purple-dim);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.hdr-name{font-size:14px;font-weight:500}
+.hdr-sub{font-size:11px;color:rgba(107,47,212,.85);margin-top:2px}
+.hdr-timer{background:rgba(0,0,0,.5);border:1px solid var(--purple-dim);border-radius:20px;padding:5px 12px;display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;font-variant-numeric:tabular-nums}
+.rec{width:6px;height:6px;border-radius:50%;background:#E24B4A;animation:blink 1s infinite}
+.messages{flex:1;overflow-y:auto;padding:16px 14px;display:flex;flex-direction:column;gap:8px}
+.messages::-webkit-scrollbar{display:none}
+.bubble{max-width:80%}
+.bt{padding:11px 15px;border-radius:18px;font-size:14px;line-height:1.5}
+.mine .bt{background:rgba(107,47,212,.3);border:1px solid rgba(107,47,212,.4);border-radius:18px 18px 4px 18px}
+.theirs .bt{background:#1A1A1A;border:1px solid var(--border);border-radius:18px 18px 18px 4px}
+.mine{align-self:flex-end}
+.theirs{align-self:flex-start}
+.btime{font-size:11px;color:rgba(255,255,255,.2);margin-top:3px;padding:0 4px}
+.mine .btime{text-align:right}
+.sys-msg{text-align:center;margin:4px 0}
+.sys-msg span{font-size:11px;background:rgba(107,47,212,.1);border:1px solid rgba(107,47,212,.2);color:rgba(107,47,212,.8);padding:4px 12px;border-radius:100px}
+.typing-bub{align-self:flex-start}
+.typing-dots{background:#1A1A1A;border:1px solid var(--border);border-radius:18px 18px 18px 4px;padding:12px 16px;display:flex;gap:4px;align-items:center}
+.typing-dots span{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.35)}
+.typing-dots span:nth-child(1){animation:dot-pulse 1.2s ease-in-out infinite}
+.typing-dots span:nth-child(2){animation:dot-pulse 1.2s ease-in-out infinite .15s}
+.typing-dots span:nth-child(3){animation:dot-pulse 1.2s ease-in-out infinite .3s}
+.input-row{padding:10px 14px 30px;border-top:1px solid var(--border);display:flex;gap:10px;align-items:center;flex-shrink:0}
+#msg-input{flex:1;background:var(--card);border:1px solid var(--border);border-radius:100px;padding:11px 18px;color:#fff;font-size:14px;outline:none;font-family:inherit}
+#msg-input::placeholder{color:rgba(255,255,255,.22)}
+#msg-input:disabled{opacity:.4}
+.send-btn{width:42px;height:42px;background:rgba(107,47,212,.45);border:1px solid var(--purple-dim);border-radius:50%;color:#fff;font-size:16px;cursor:pointer;flex-shrink:0;font-family:inherit;transition:opacity .2s}
+.send-btn:disabled{opacity:.35;cursor:default}
+/* Reveal bar */
+.reveal-bar{background:rgba(107,47,212,.12);border-top:1px solid rgba(107,47,212,.25);padding:10px 18px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.reveal-bar .rl{font-size:12px;color:rgba(107,47,212,.8)}
+.reveal-bar .rtime{font-size:13px;font-weight:600;color:#fff;font-variant-numeric:tabular-nums}
+.reveal-bar .rbtn{background:linear-gradient(135deg,#6B2FD4,#4A1FA8);border:none;color:#fff;padding:8px 18px;border-radius:100px;font-size:12px;cursor:pointer;font-family:inherit}
+
+/* ── S7: REVEAL DECISION ── */
+#s7{align-items:center;justify-content:center;padding:0 28px}
+#s7 .inner{width:100%;text-align:center}
+.vs-row{display:flex;align-items:center;justify-content:center;margin-bottom:24px}
+.vs-av{width:68px;height:68px;border-radius:50%;background:var(--card);border:1px solid var(--purple-dim);display:flex;align-items:center;justify-content:center;font-size:28px}
+.vs-mid{padding:0 16px;font-size:11px;color:rgba(255,255,255,.2);letter-spacing:.1em}
+.status-cards{display:flex;gap:12px;justify-content:center;margin-bottom:32px}
+.sc{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 18px;text-align:center;min-width:110px}
+.sc .scn{font-size:10px;color:rgba(255,255,255,.3);margin-bottom:4px}
+.sc .scs{font-size:12px;color:rgba(255,255,255,.3)}
+.sc .scs.ok{color:var(--purple-light)}
+
+/* ── S8: REVEAL MOMENT ── */
+#s8{align-items:center;justify-content:center;background:#0A0A0A}
+#s8 .rv-glow{position:absolute;inset:0;background:radial-gradient(ellipse 80% 70% at 50% 40%,#1C1040 0%,#0A0A0A 100%);pointer-events:none}
+#s8 .inner{position:relative;text-align:center;padding:0 28px;width:100%}
+.rv-badge{font-size:11px;letter-spacing:.25em;color:var(--purple-light);text-transform:uppercase;margin-bottom:28px}
+.rv-avatar{width:130px;height:130px;border-radius:50%;background:linear-gradient(135deg,#2D1A5A,#4A2095);border:2px solid rgba(107,47,212,.85);margin:0 auto 20px;display:flex;align-items:center;justify-content:center;font-size:56px;animation:pop-in .7s cubic-bezier(.34,1.56,.64,1) both}
+.rv-name{font-size:24px;font-weight:400;animation:fade-up .5s ease-out .6s both}
+.rv-city{font-size:13px;color:rgba(107,47,212,.85);margin-top:6px;animation:fade-up .5s ease-out .75s both}
+.rv-acts{margin-top:36px;display:flex;flex-direction:column;gap:10px;animation:fade-up .5s ease-out .9s both}
+
+/* ── S9: DECLINED ── */
+#s9{align-items:center;justify-content:center;padding:0 36px}
+#s9 .inner{text-align:center}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ════ S1: SPLASH ════ -->
+  <div class="screen active" id="s1">
+    <div class="bg-glow"></div>
+    <div class="mask">🎭</div>
+    <div class="brand">REVEAL</div>
+    <div class="tagline">"İnsanlar yüzlerinden<br>ibaret değildir."</div>
+    <button class="cta" onclick="goTo('s2')">Başla</button>
+  </div>
+
+  <!-- ════ S2: MASK SELECTION ════ -->
+  <div class="screen" id="s2">
+    <div class="status-bar">
+      <span class="time" id="clock2">9:41</span>
+      <span><span class="conn-dot" id="dot2"></span></span>
+    </div>
+    <div class="header">
+      <div class="section-label">Maskeni seç</div>
+      <h2>Seni en iyi hangisi<br>temsil ediyor?</h2>
+    </div>
+    <div class="mask-grid">
+      <div class="mask-card" onclick="selMask(this,'Gececi','🖤','gece enerjisi olan, derin düşünen biri')"><div class="mi">🖤</div><div class="mn">Gececi</div><div class="md">Derin konuşur, saat fark etmez</div></div>
+      <div class="mask-card" onclick="selMask(this,'Kaotik','⚡','enerjik, tahmin edilemez biri')"><div class="mi">⚡</div><div class="mn">Kaotik</div><div class="md">Enerjisi yüksek, spontane</div></div>
+      <div class="mask-card" onclick="selMask(this,'Filozof','🧠','felsefi düşünen, anlam arayan biri')"><div class="mi">🧠</div><div class="mn">Filozof</div><div class="md">Sorular sorar, derine iner</div></div>
+      <div class="mask-card" onclick="selMask(this,'Romantik','🌙','şiirsel, bağlantıyı derinden hisseden biri')"><div class="mi">🌙</div><div class="mn">Romantik</div><div class="md">Şiirsel, duygu yüklü</div></div>
+      <div class="mask-card" onclick="selMask(this,'Gözlemci','🔭','sessiz ama keskin, her şeyi fark eden biri')"><div class="mi">🔭</div><div class="mn">Gözlemci</div><div class="md">Az konuşur, çok görür</div></div>
+      <div class="mask-card" onclick="selMask(this,'İsyankâr','🔥','kurallara uymayan, özgür ruhlu biri')"><div class="mi">🔥</div><div class="mn">İsyankâr</div><div class="md">Sınırları zorlar</div></div>
+    </div>
+    <div class="footer">
+      <button id="mask-btn" onclick="goTo('s3')">Devam →</button>
+    </div>
+  </div>
+
+  <!-- ════ S3: SPARK QUESTION ════ -->
+  <div class="screen" id="s3">
+    <div class="status-bar">
+      <span class="time" id="clock3">9:41</span>
+      <span><span class="conn-dot" id="dot3"></span></span>
+    </div>
+    <div class="inner">
+      <div class="section-label" style="text-align:center;margin-bottom:20px">Kıvılcım sorusu</div>
+      <div class="q-card"><p>"Seni en son ne gerçekten etkiledi?"</p></div>
+      <textarea id="spark-ta" placeholder="Cevabını yaz..." maxlength="150" oninput="onSpark(this)"></textarea>
+      <div class="char-row"><span id="sc">0 / 150</span></div>
+      <button class="btn-primary" id="spark-btn" onclick="joinQueue()" disabled>Eşleşmeye başla →</button>
+    </div>
+  </div>
+
+  <!-- ════ S4: SEARCHING ════ -->
+  <div class="screen" id="s4">
+    <div class="bg-glow"></div>
+    <div class="pulse-wrap">
+      <div class="pr r1"></div><div class="pr r2"></div>
+      <div class="pulse-inner" id="s4-mask">🎭</div>
+    </div>
+    <div class="search-txt" id="s4-txt">Seninle aynı frekansta<br>biri aranıyor...</div>
+    <div class="dl"><span></span><span></span><span></span></div>
+    <button class="cancel" onclick="cancelQueue()">İptal et</button>
+  </div>
+
+  <!-- ════ S5: MATCHED ════ -->
+  <div class="screen" id="s5">
+    <div class="bg-glow"></div>
+    <div class="inner">
+      <div class="section-label" style="text-align:center">Eşleşme Bulundu ✨</div>
+      <div class="avatar" id="s5-av">🎭</div>
+      <div class="mname" id="s5-name">Anonim</div>
+      <div class="msub">Aktif şimdi</div>
+      <div class="spark-box">
+        <div class="sl">Kıvılcım yanıtı</div>
+        <div class="st" id="s5-spark">...</div>
+      </div>
+      <button class="btn-primary" onclick="startChat()">Sohbete Başla →</button>
+      <button class="btn-ghost" onclick="cancelQueue()">Geç</button>
+    </div>
+  </div>
+
+  <!-- ════ S6: CHAT ════ -->
+  <div class="screen" id="s6">
+    <div class="chat-hdr">
+      <div class="left">
+        <div class="hdr-avatar" id="hdr-av">🎭</div>
+        <div>
+          <div class="hdr-name" id="hdr-name">Anonim</div>
+          <div class="hdr-sub" id="hdr-sub">Maskeli · Aktif</div>
+        </div>
+      </div>
+      <div class="hdr-timer"><div class="rec"></div><span id="chat-timer">05:00</span></div>
+    </div>
+    <div class="reveal-bar" id="reveal-bar" style="display:none">
+      <span class="rl">🎭 Reveal vakti:</span>
+      <span class="rtime" id="reveal-countdown">00:60</span>
+      <button class="rbtn" onclick="goTo('s7')">Karar ver</button>
+    </div>
+    <div class="messages" id="msgs"></div>
+    <div class="input-row">
+      <input type="text" id="msg-input" placeholder="Mesaj yaz..." onkeydown="if(event.key==='Enter')sendMsg()" oninput="onType()">
+      <button class="send-btn" id="send-btn" onclick="sendMsg()">➤</button>
+    </div>
+  </div>
+
+  <!-- ════ S7: REVEAL DECISION ════ -->
+  <div class="screen" id="s7">
+    <div class="bg-glow"></div>
+    <div class="inner">
+      <div class="vs-row">
+        <div class="vs-av" id="vs-me">🎭</div>
+        <div class="vs-mid">VS</div>
+        <div class="vs-av" id="vs-them">🎭</div>
+      </div>
+      <div class="section-label" style="text-align:center;margin-bottom:14px">Reveal Vakti</div>
+      <div style="font-size:24px;font-weight:300;line-height:1.4;margin-bottom:10px">Görüntüleriniz<br>açılsın mı?</div>
+      <div style="font-size:13px;color:rgba(255,255,255,.3);line-height:1.65;margin-bottom:20px">İki taraf da onaylarsa<br>maskeler düşer.</div>
+      <div class="status-cards">
+        <div class="sc"><div class="scn">Sen</div><div class="scs" id="dec-me">Bekliyor...</div></div>
+        <div class="sc"><div class="scn" id="dec-them-lbl">Anonim</div><div class="scs" id="dec-them">Karar veriyor...</div></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <button class="btn-primary" onclick="sendRevealVote(true)">🎭 Evet, görüntümü aç</button>
+        <button class="btn-ghost" onclick="sendRevealVote(false)">Hayır, geçeyim</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ S8: REVEAL MOMENT ════ -->
+  <div class="screen" id="s8">
+    <div class="rv-glow"></div>
+    <div class="inner">
+      <div class="rv-badge">✨ Reveal Anı</div>
+      <div class="rv-avatar" id="rv-av">👤</div>
+      <div class="rv-name" id="rv-name">...</div>
+      <div class="rv-city" id="rv-city">...</div>
+      <div class="rv-acts">
+        <button class="btn-primary" onclick="goTo('s6')">Sohbete devam et</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ S9: DECLINED / PARTNER LEFT ════ -->
+  <div class="screen" id="s9">
+    <div class="bg-glow"></div>
+    <div class="inner">
+      <div style="font-size:56px;margin-bottom:24px;opacity:.35">🎭</div>
+      <div class="section-label" style="text-align:center;margin-bottom:14px" id="s9-label">Sohbet Bitti</div>
+      <div style="font-size:22px;font-weight:300;line-height:1.45;margin-bottom:10px;text-align:center" id="s9-title">Maskeler kaldı</div>
+      <div style="font-size:13px;color:rgba(255,255,255,.3);line-height:1.65;margin-bottom:40px;text-align:center" id="s9-sub">Her şey tamam. Bazı konuşmalar bu kadar.</div>
+      <button class="btn-primary" onclick="restart()">Yeni Eşleşme</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+//  CONFIG — Render.com'a deploy sonrası güncelle
+// ══════════════════════════════════════════
+const SERVER_URL = 'https://reveal-backend-ivbz.onrender.com';
+
+// ══════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════
+const S = {
+  mask: { name:'', icon:'', desc:'' },
+  spark: '',
+  roomId: null,
+  partner: { mask:{name:'',icon:''}, spark:'' },
+  myVote: null,
+  theyVoted: false,
+  vcSecs: 300,
+  vcInterval: null,
+  typing: null,
+  typingTimeout: null,
+  revealed: false,
+};
+
+// ══════════════════════════════════════════
+//  SOCKET
+// ══════════════════════════════════════════
+const socket = io(SERVER_URL, { autoConnect: true, reconnectionAttempts: 5 });
+
+socket.on('connect', () => {
+  setDots('online');
+  showToast('Bağlandı ✓');
+});
+socket.on('disconnect', () => setDots('offline'));
+socket.on('connect_error', () => { setDots('error'); showToast('Sunucuya bağlanılamadı'); });
+
+socket.on('waiting', () => {
+  document.getElementById('s4-txt').innerHTML = 'Başka biri bekleniyor...<br>Sen ilk sıradasın.';
+});
+
+socket.on('matched', ({ roomId, partnerMask, partnerSpark }) => {
+  S.roomId = roomId;
+  S.partner.mask = partnerMask;
+  S.partner.spark = partnerSpark;
+
+  document.getElementById('s5-av').textContent = partnerMask.icon;
+  document.getElementById('s5-name').textContent = partnerMask.name;
+  document.getElementById('s5-spark').textContent = '"' + partnerSpark + '"';
+  goTo('s5');
+});
+
+socket.on('receive_message', ({ text, ts }) => {
+  removeTyping();
+  appendMsg(text, 'theirs', fmtTime(ts));
+  updateMenuPreview(text);
+});
+
+socket.on('partner_typing', ({ isTyping }) => {
+  if (isTyping) showTyping(); else removeTyping();
+});
+
+socket.on('partner_voted', () => {
+  S.theyVoted = true;
+  document.getElementById('dec-them').textContent = '✓ Karar verdi';
+  document.getElementById('dec-them').classList.add('ok');
+  checkBothVoted();
+});
+
+socket.on('reveal_result', ({ accepted, partnerMeta }) => {
+  if (accepted) {
+    S.revealed = true;
+    // Show reveal screen
+    document.getElementById('rv-av').textContent = partnerMeta?.mask?.icon || '👤';
+    document.getElementById('rv-name').textContent = partnerMeta?.mask?.name || 'Anonim';
+    document.getElementById('rv-city').textContent = 'Reveal tamamlandı ✨';
+    // Update chat header
+    document.getElementById('hdr-av').textContent = partnerMeta?.mask?.icon || '🎭';
+    document.getElementById('hdr-name').textContent = partnerMeta?.mask?.name || 'Anonim';
+    document.getElementById('hdr-sub').textContent = 'Reveal edildi ✨';
+    goTo('s8');
+    addSysMsg('✨ Reveal tamamlandı! Artık birbirinizi görüyorsunuz.');
+  } else {
+    goTo('s9');
+    document.getElementById('s9-label').textContent = 'Reveal Olmadı';
+    document.getElementById('s9-title').textContent = 'Maskeler kaldı';
+    document.getElementById('s9-sub').textContent = 'En az biri geçmeyi seçti.';
+  }
+});
+
+socket.on('partner_left', () => {
+  clearInterval(S.vcInterval);
+  goTo('s9');
+  document.getElementById('s9-label').textContent = 'Karşı taraf ayrıldı';
+  document.getElementById('s9-title').textContent = 'Bağlantı kesildi';
+  document.getElementById('s9-sub').textContent = 'Yeni bir eşleşme başlatabilirsin.';
+});
+
+// ══════════════════════════════════════════
+//  UI HELPERS
+// ══════════════════════════════════════════
+function goTo(id) {
+  document.querySelectorAll('.screen').forEach(s => { s.style.display='none'; s.classList.remove('active'); });
+  const el = document.getElementById(id);
+  el.style.display = 'flex';
+  el.classList.add('active');
+  updateClock();
+}
+
+function setDots(state) {
+  document.querySelectorAll('.conn-dot').forEach(d => {
+    d.className = 'conn-dot' + (state==='online'?' online':state==='error'?' error':'');
+  });
+}
+
+function showToast(msg, dur=2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), dur);
+}
+
+function updateClock() {
+  const n = new Date();
+  const t = n.getHours()+':'+String(n.getMinutes()).padStart(2,'0');
+  document.querySelectorAll('[id^="clock"]').forEach(el => el.textContent=t);
+}
+updateClock(); setInterval(updateClock,10000);
+
+function fmtTime(ts) {
+  const d = new Date(ts||Date.now());
+  return d.getHours()+':'+String(d.getMinutes()).padStart(2,'0');
+}
+
+// ══════════════════════════════════════════
+//  MASK SELECTION
+// ══════════════════════════════════════════
+function selMask(el, name, icon, desc) {
+  document.querySelectorAll('.mask-card').forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected');
+  S.mask = { name, icon, desc };
+  document.getElementById('mask-btn').classList.add('on');
+}
+
+// ══════════════════════════════════════════
+//  SPARK
+// ══════════════════════════════════════════
+function onSpark(el) {
+  document.getElementById('sc').textContent = el.value.length+' / 150';
+  document.getElementById('spark-btn').disabled = el.value.trim().length < 3;
+}
+
+// ══════════════════════════════════════════
+//  QUEUE
+// ══════════════════════════════════════════
+function joinQueue() {
+  S.spark = document.getElementById('spark-ta').value.trim();
+  if (!S.spark) return;
+  document.getElementById('s4-mask').textContent = S.mask.icon;
+  goTo('s4');
+  socket.emit('join_queue', { mask: S.mask, sparkAnswer: S.spark });
+}
+
+function cancelQueue() {
+  socket.emit('leave_room', { roomId: S.roomId });
+  S.roomId = null;
+  goTo('s3');
+}
+
+// ══════════════════════════════════════════
+//  CHAT
+// ══════════════════════════════════════════
+function startChat() {
+  const p = S.partner;
+  document.getElementById('hdr-av').textContent = p.mask.icon;
+  document.getElementById('hdr-name').textContent = p.mask.name;
+  document.getElementById('hdr-sub').textContent = 'Maskeli · Aktif';
+  document.getElementById('vs-me').textContent = S.mask.icon;
+  document.getElementById('vs-them').textContent = p.mask.icon;
+  document.getElementById('dec-them-lbl').textContent = p.mask.name;
+  document.getElementById('msgs').innerHTML = '';
+  addSysMsg('🎭 Maskeli sohbet başladı');
+
+  goTo('s6');
+  startTimer();
+}
+
+function startTimer() {
+  clearInterval(S.vcInterval);
+  S.vcSecs = 300;
+  document.getElementById('reveal-bar').style.display = 'none';
+  updateTimerDisplay();
+  S.vcInterval = setInterval(() => {
+    S.vcSecs--;
+    updateTimerDisplay();
+    if (S.vcSecs === 60) {
+      document.getElementById('reveal-bar').style.display = 'flex';
+    }
+    if (S.vcSecs <= 0) {
+      clearInterval(S.vcInterval);
+      goTo('s7');
+    }
+  }, 1000);
+}
+
+function updateTimerDisplay() {
+  const m = Math.floor(S.vcSecs/60), s = S.vcSecs%60;
+  const t = String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+  const el = document.getElementById('chat-timer');
+  if (el) el.textContent = t;
+  const rc = document.getElementById('reveal-countdown');
+  if (rc) rc.textContent = t;
+}
+
+let lastTypingSent = 0;
+function onType() {
+  const now = Date.now();
+  if (now - lastTypingSent > 1500) {
+    socket.emit('typing', { roomId: S.roomId, isTyping: true });
+    lastTypingSent = now;
+  }
+  clearTimeout(S.typingTimeout);
+  S.typingTimeout = setTimeout(() => {
+    socket.emit('typing', { roomId: S.roomId, isTyping: false });
+  }, 2000);
+}
+
+function sendMsg() {
+  const input = document.getElementById('msg-input');
+  const text = input.value.trim();
+  if (!text || !S.roomId) return;
+  input.value = '';
+  socket.emit('send_message', { roomId: S.roomId, text });
+  socket.emit('typing', { roomId: S.roomId, isTyping: false });
+  appendMsg(text, 'mine', fmtTime(Date.now()));
+}
+
+function appendMsg(text, side, time) {
+  const msgs = document.getElementById('msgs');
+  const div = document.createElement('div');
+  div.className = 'bubble '+side;
+  div.innerHTML = `<div class="bt">${esc(text)}</div><div class="btime">${time}</div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function addSysMsg(text) {
+  const msgs = document.getElementById('msgs');
+  const div = document.createElement('div');
+  div.className = 'sys-msg';
+  div.innerHTML = `<span>${text}</span>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+let typingEl = null;
+function showTyping() {
+  if (typingEl) return;
+  const msgs = document.getElementById('msgs');
+  typingEl = document.createElement('div');
+  typingEl.className = 'bubble typing-bub';
+  typingEl.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
+  msgs.appendChild(typingEl);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+function removeTyping() {
+  if (typingEl) { typingEl.remove(); typingEl = null; }
+}
+
+function updateMenuPreview(text) { /* future */ }
+
+// ══════════════════════════════════════════
+//  REVEAL
+// ══════════════════════════════════════════
+function sendRevealVote(accept) {
+  S.myVote = accept;
+  document.getElementById('dec-me').textContent = accept ? '✓ Kabul' : '✗ Reddetti';
+  document.getElementById('dec-me').classList.toggle('ok', accept);
+
+  socket.emit('reveal_vote', { roomId: S.roomId, accept });
+
+  if (!accept) {
+    goTo('s9');
+    document.getElementById('s9-label').textContent = 'Reveal Olmadı';
+    document.getElementById('s9-title').textContent = 'Maskeler kaldı';
+    document.getElementById('s9-sub').textContent = 'Reveal\'i reddettik.';
+    return;
+  }
+  checkBothVoted();
+}
+
+function checkBothVoted() {
+  if (S.myVote === true && S.theyVoted) {
+    // Both accepted — server will send reveal_result
+    document.getElementById('dec-me').textContent = '✓ Kabul';
+    document.getElementById('dec-them').textContent = '✓ Kabul';
+  }
+}
+
+// ══════════════════════════════════════════
+//  RESTART
+// ══════════════════════════════════════════
+function restart() {
+  if (S.roomId) socket.emit('leave_room', { roomId: S.roomId });
+  S.roomId = null;
+  S.revealed = false;
+  S.myVote = null;
+  S.theyVoted = false;
+  clearInterval(S.vcInterval);
+  document.getElementById('spark-ta').value = '';
+  document.getElementById('sc').textContent = '0 / 150';
+  document.getElementById('spark-btn').disabled = true;
+  goTo('s3');
+}
+
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+</body>
+</html>
