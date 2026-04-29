@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>REVEAL — App Prototype</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{background:#111;display:flex;justify-content:center;align-items:center;min-height:100vh;font-family:'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+
+.phone{
+  position:relative;
+  width:393px;
+  height:852px;
+  background:#000;
+  border-radius:55px;
+  box-shadow:0 0 0 2px #333,0 0 0 4px #111,0 0 80px rgba(120,60,255,0.35);
+  overflow:hidden;
+  flex-shrink:0;
+}
+
+.dynamic-island{
+  position:absolute;top:14px;left:50%;transform:translateX(-50%);
+  width:126px;height:37px;background:#000;border-radius:20px;z-index:200;
+}
+
+.status-bar{
+  background:#0D0D0D;padding:58px 28px 10px;
+  display:flex;justify-content:space-between;align-items:center;
+  position:relative;z-index:10;
+}
+.status-bar .time{color:#fff;font-size:15px;font-weight:600;}
+.status-icons{display:flex;gap:6px;align-items:center;}
+
+.screen-area{height:760px;overflow:hidden;position:relative;background:#0D0D0D;}
+
+.screen{position:absolute;inset:0;display:none;flex-direction:column;}
+.screen.active{display:flex;}
+
+.home-indicator{
+  background:#0D0D0D;padding:8px 0 10px;
+  display:flex;justify-content:center;
+}
+.home-indicator div{width:134px;height:5px;border-radius:3px;background:rgba(255,255,255,0.2);}
+
+/* Nav sidebar */
+.nav-sidebar{
+  position:absolute;right:-148px;top:50%;transform:translateY(-50%);
+  display:flex;flex-direction:column;gap:5px;
+}
+.nav-btn{
+  background:#1a1a2e;border:1px solid rgba(107,47,212,0.35);
+  color:rgba(255,255,255,0.6);padding:6px 12px;border-radius:8px;
+  font-size:10.5px;cursor:pointer;white-space:nowrap;
+  font-family:-apple-system,sans-serif;transition:all 0.2s;
+}
+.nav-btn:hover{background:#2a1a4e;color:#fff;}
+.nav-btn.current{border-color:#7B3FE4;color:#9B6FE4;}
+
+/* ── ANIMATIONS ── */
+@keyframes pulse-mask{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+@keyframes pulse-out{0%{transform:scale(1);opacity:0.6}100%{transform:scale(1.7);opacity:0}}
+@keyframes dot-pulse{0%,80%,100%{opacity:0.2;transform:scale(0.8)}40%{opacity:1;transform:scale(1)}}
+@keyframes mask-shatter{0%{transform:scale(1) rotate(0deg);opacity:1}60%{transform:scale(1.4) rotate(-8deg);opacity:0.4}100%{transform:scale(0) rotate(20deg);opacity:0}}
+@keyframes fade-up{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes glow-pulse{0%,100%{box-shadow:0 0 0 0 rgba(107,47,212,0)}50%{box-shadow:0 0 28px 6px rgba(107,47,212,0.35)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+@keyframes ping{0%{transform:scale(1);opacity:0.7}100%{transform:scale(1.55);opacity:0}}
+@keyframes pop-in{from{transform:scale(0.4);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes fade-in{from{opacity:0}to{opacity:1}}
+@keyframes slide-up{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+@keyframes appear{from{opacity:0}to{opacity:1}}
+
+/* ── SCREEN 1: SPLASH ── */
+#s1{
+  background:#0D0D0D;
+  align-items:center;justify-content:center;
+}
+#s1 .bg-glow{
+  position:absolute;inset:0;
+  background:radial-gradient(ellipse 65% 55% at 50% 45%,rgba(120,40,255,0.18) 0%,transparent 70%);
+}
+#s1 .mask-icon{font-size:96px;line-height:1;filter:drop-shadow(0 0 36px rgba(140,60,255,0.55));animation:pulse-mask 3s ease-in-out infinite;position:relative;z-index:1;}
+#s1 .tagline-wrap{text-align:center;padding:0 40px;position:relative;z-index:1;margin-top:28px;}
+#s1 .app-label{font-size:11px;letter-spacing:0.3em;color:#5B3FA0;font-weight:500;margin-bottom:14px;text-transform:uppercase;}
+#s1 .tagline{font-size:23px;font-weight:300;color:#fff;line-height:1.45;letter-spacing:-0.3px;}
+#s1 .cta-btn{
+  margin-top:60px;background:transparent;
+  border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.7);
+  padding:14px 48px;border-radius:100px;font-size:14px;
+  letter-spacing:0.08em;cursor:pointer;font-family:inherit;position:relative;z-index:1;
+  transition:all 0.2s;
+}
+#s1 .cta-btn:hover{border-color:rgba(107,47,212,0.6);color:#fff;}
+
+/* ── SCREEN 2: ONBOARDING ── */
+#s2{background:#0D0D0D;}
+#s2 .bg-glow{position:absolute;inset:0;background:radial-gradient(ellipse 80% 45% at 50% 80%,rgba(100,30,220,0.12) 0%,transparent 70%);}
+#s2 .ob-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 36px;position:relative;}
+#s2 .ob-icon{font-size:58px;margin-bottom:28px;filter:drop-shadow(0 0 20px rgba(140,60,255,0.4));transition:opacity 0.3s;}
+#s2 .ob-title{font-size:24px;font-weight:300;color:#fff;line-height:1.45;letter-spacing:-0.3px;text-align:center;transition:opacity 0.3s;}
+#s2 .ob-sub{font-size:13px;color:rgba(255,255,255,0.32);margin-top:16px;line-height:1.65;text-align:center;transition:opacity 0.3s;}
+.ob-dots{display:flex;gap:8px;margin-top:48px;}
+.ob-dot{height:4px;border-radius:2px;background:rgba(255,255,255,0.2);transition:all 0.3s;}
+.ob-dot.active{background:#7B3FE4;width:20px;}
+.ob-dot:not(.active){width:6px;}
+#s2 .ob-footer{padding:0 32px 48px;position:relative;}
+#s2 .ob-btn{
+  width:100%;background:linear-gradient(135deg,#6B2FD4,#4A1FA8);
+  border:none;color:#fff;padding:16px;border-radius:16px;
+  font-size:15px;font-weight:500;cursor:pointer;font-family:inherit;letter-spacing:0.02em;
+}
+
+/* ── SCREEN 3: MASK SELECTION ── */
+#s3{background:#0D0D0D;overflow-y:auto;}
+#s3 .header{padding:28px 24px 12px;}
+#s3 .section-label{font-size:11px;letter-spacing:0.22em;color:#5B3FA0;font-weight:500;text-transform:uppercase;margin-bottom:10px;}
+#s3 .section-title{font-size:21px;font-weight:300;color:#fff;}
+#s3 .mask-grid{padding:12px 16px;display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.mask-card{
+  background:#141414;border:1px solid rgba(255,255,255,0.07);
+  border-radius:18px;padding:20px 16px;cursor:pointer;transition:all 0.2s;
+}
+.mask-card:hover{background:#1C1C1C;}
+.mask-card.selected{border-color:rgba(107,47,212,0.75);background:#1C1030;}
+.mask-card .mc-icon{font-size:32px;margin-bottom:10px;}
+.mask-card .mc-name{color:#fff;font-size:15px;font-weight:500;margin-bottom:5px;}
+.mask-card .mc-desc{color:rgba(255,255,255,0.35);font-size:12px;line-height:1.45;}
+#s3 .mask-footer{padding:16px 20px 36px;position:sticky;bottom:0;background:#0D0D0D;}
+#mask-confirm-btn{
+  width:100%;padding:16px;border-radius:16px;font-size:15px;
+  cursor:pointer;font-family:inherit;transition:all 0.3s;
+  background:rgba(107,47,212,0.15);border:1px solid rgba(107,47,212,0.3);
+  color:rgba(255,255,255,0.35);pointer-events:none;
+}
+#mask-confirm-btn.enabled{
+  background:linear-gradient(135deg,#6B2FD4,#4A1FA8);
+  border:none;color:#fff;pointer-events:auto;
+}
+
+/* ── SCREEN 4: SPARK ── */
+#s4{background:#0D0D0D;align-items:center;justify-content:center;padding:32px 24px;}
+#s4 .bg-glow{position:absolute;inset:0;background:radial-gradient(ellipse 70% 55% at 50% 40%,rgba(90,20,200,0.13) 0%,transparent 70%);}
+#s4 .spark-wrap{position:relative;width:100%;}
+#s4 .section-label{font-size:11px;letter-spacing:0.22em;color:#5B3FA0;font-weight:500;text-transform:uppercase;text-align:center;margin-bottom:32px;}
+.question-card{
+  background:#141414;border:1px solid rgba(255,255,255,0.09);
+  border-radius:24px;padding:32px 24px;margin-bottom:24px;
+}
+.question-card p{font-size:20px;font-weight:300;color:#fff;line-height:1.5;text-align:center;}
+#spark-input{
+  width:100%;background:#141414;border:1px solid rgba(255,255,255,0.09);
+  border-radius:16px;padding:18px;color:#fff;font-size:15px;
+  resize:none;height:100px;font-family:inherit;outline:none;line-height:1.5;
+  transition:border-color 0.2s;
+}
+#spark-input:focus{border-color:rgba(107,47,212,0.5);}
+#spark-input::placeholder{color:rgba(255,255,255,0.25);}
+.char-row{display:flex;justify-content:flex-end;margin-top:8px;margin-bottom:32px;}
+#char-count{font-size:12px;color:rgba(255,255,255,0.25);}
+.primary-btn{
+  width:100%;background:linear-gradient(135deg,#6B2FD4,#4A1FA8);
+  border:none;color:#fff;padding:16px;border-radius:16px;
+  font-size:15px;font-weight:500;cursor:pointer;font-family:inherit;
+}
+
+/* ── SCREEN 5: MATCHING ── */
+#s5{background:#0D0D0D;align-items:center;justify-content:center;}
+#s5 .bg-glow{position:absolute;inset:0;background:radial-gradient(ellipse 65% 65% at 50% 50%,rgba(100,30,220,0.12) 0%,transparent 70%);}
+#s5 .pulse-wrap{position:relative;width:124px;height:124px;margin:0 auto 36px;}
+.pulse-ring{position:absolute;border:1px solid rgba(107,47,212,0.35);border-radius:50%;}
+.pulse-ring.r1{inset:-22px;animation:pulse-out 2.2s ease-out infinite;}
+.pulse-ring.r2{inset:-11px;animation:pulse-out 2.2s ease-out infinite 0.55s;}
+#s5 .pulse-inner{width:124px;height:124px;background:#141414;border:1px solid rgba(107,47,212,0.5);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:50px;}
+#s5 .search-text{font-size:18px;font-weight:300;color:#fff;line-height:1.6;text-align:center;position:relative;}
+.dot-loader{display:flex;gap:5px;justify-content:center;margin-top:18px;}
+.dot-loader span{width:5px;height:5px;border-radius:50%;background:#7B3FE4;}
+.dot-loader span:nth-child(1){animation:dot-pulse 1.4s ease-in-out infinite;}
+.dot-loader span:nth-child(2){animation:dot-pulse 1.4s ease-in-out infinite 0.2s;}
+.dot-loader span:nth-child(3){animation:dot-pulse 1.4s ease-in-out infinite 0.4s;}
+#s5 .cancel-btn{position:absolute;bottom:48px;background:transparent;border:none;color:rgba(255,255,255,0.3);font-size:13px;cursor:pointer;font-family:inherit;letter-spacing:0.05em;}
+
+/* ── SCREEN 6: MATCH FOUND ── */
+#s6{background:#0D0D0D;align-items:center;justify-content:center;}
+#s6 .bg-glow{position:absolute;inset:0;background:radial-gradient(ellipse 70% 65% at 50% 50%,rgba(107,47,212,0.17) 0%,transparent 70%);}
+#s6 .match-content{position:relative;width:100%;padding:0 32px;}
+#s6 .avatar{width:104px;height:104px;border-radius:50%;background:#141414;border:2px solid rgba(107,47,212,0.65);margin:0 auto 24px;display:flex;align-items:center;justify-content:center;font-size:46px;animation:glow-pulse 2.5s ease-in-out infinite;}
+#s6 .section-label{font-size:11px;letter-spacing:0.25em;color:#6B3FD4;text-transform:uppercase;margin-bottom:14px;text-align:center;}
+#s6 .match-name{font-size:26px;font-weight:300;color:#fff;margin-bottom:6px;text-align:center;}
+#s6 .match-sub{font-size:13px;color:rgba(255,255,255,0.35);margin-bottom:24px;text-align:center;}
+.spark-preview{
+  background:rgba(107,47,212,0.12);border:1px solid rgba(107,47,212,0.26);
+  border-radius:14px;padding:14px 20px;margin-bottom:28px;
+}
+.spark-preview .sp-label{font-size:11px;color:rgba(107,47,212,0.8);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px;}
+.spark-preview .sp-text{font-size:14px;color:rgba(255,255,255,0.72);line-height:1.55;font-style:italic;}
+#s6 .btn-row{display:flex;flex-direction:column;gap:10px;}
+
+/* ── SCREEN 7: MASKED VIDEO CALL ── */
+#s7{background:#0A0A0A;}
+#s7 .video-area{position:relative;flex:1;overflow:hidden;}
+.remote-bg{position:absolute;inset:0;background:#0A0A0A;display:flex;align-items:center;justify-content:center;}
+.remote-glow{position:absolute;inset:0;background:radial-gradient(ellipse 80% 72% at 50% 40%,#1A1030 0%,#0A0A0A 100%);}
+.remote-silhouette{position:relative;text-align:center;}
+.silhouette-avatar{
+  width:114px;height:114px;border-radius:50%;
+  background:linear-gradient(135deg,#1C1040,#2A1A5A);
+  border:1px solid rgba(107,47,212,0.3);
+  margin:0 auto 14px;display:flex;align-items:center;justify-content:center;
+}
+.remote-label{font-size:13px;color:rgba(255,255,255,0.28);}
+.remote-overlay{position:absolute;inset:0;background:rgba(8,8,18,0.25);}
+.call-topbar{
+  position:absolute;top:0;left:0;right:0;padding:16px 20px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.caller-info{display:flex;align-items:center;gap:10px;}
+.caller-mask{width:38px;height:38px;border-radius:50%;background:#141414;border:1px solid rgba(107,47,212,0.55);display:flex;align-items:center;justify-content:center;font-size:18px;}
+.caller-name{color:#fff;font-size:14px;font-weight:500;}
+.caller-status{display:flex;align-items:center;gap:5px;margin-top:2px;}
+.status-dot{width:6px;height:6px;border-radius:50%;background:#3FD47B;}
+.status-text{color:rgba(255,255,255,0.4);font-size:11px;}
+.call-timer{
+  background:rgba(0,0,0,0.65);border:1px solid rgba(107,47,212,0.45);
+  border-radius:20px;padding:6px 14px;display:flex;align-items:center;gap:7px;
+}
+.rec-dot{width:7px;height:7px;border-radius:50%;background:#E24B4A;animation:blink 1s infinite;}
+#vc-time{color:#fff;font-size:14px;font-weight:500;font-variant-numeric:tabular-nums;}
+.self-view{
+  position:absolute;bottom:20px;right:16px;width:80px;height:110px;
+  border-radius:16px;background:#141414;border:1px solid rgba(107,47,212,0.45);
+  overflow:hidden;display:flex;align-items:center;justify-content:center;
+  flex-direction:column;gap:5px;
+}
+.self-view-label{font-size:9px;color:rgba(255,255,255,0.3);}
+.reveal-hint{
+  position:absolute;bottom:150px;left:50%;transform:translateX(-50%);
+  background:rgba(0,0,0,0.78);border:1px solid rgba(107,47,212,0.38);
+  border-radius:100px;padding:7px 18px;white-space:nowrap;
+  opacity:0;transition:opacity 0.6s;
+}
+.reveal-hint span.rh-label{font-size:12px;color:rgba(107,47,212,0.9);}
+.reveal-hint span.rh-time{font-size:12px;color:#fff;font-weight:600;}
+.call-controls{
+  background:#0D0D0D;padding:18px 20px 30px;
+  border-top:1px solid rgba(255,255,255,0.05);
+}
+.controls-row{display:flex;justify-content:space-around;align-items:center;}
+.ctrl-btn{
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.09);
+  border-radius:50%;width:56px;height:56px;cursor:pointer;font-size:20px;
+}
+.ctrl-btn.danger{background:#C0392B;border:none;width:64px;height:64px;font-size:22px;}
+.ctrl-btn.reveal{background:rgba(107,47,212,0.22);border:1px solid rgba(107,47,212,0.45);}
+.ctrl-labels{display:flex;justify-content:space-around;margin-top:8px;padding:0 8px;}
+.ctrl-label{font-size:10px;color:rgba(255,255,255,0.22);width:56px;text-align:center;}
+.ctrl-label.highlight{color:rgba(107,47,212,0.75);}
+
+/* ── SCREEN 8: REVEAL DECISION ── */
+#s8{background:#0D0D0D;align-items:center;justify-content:center;padding:0 32px;}
+#s8 .bg-glow{position:absolute;inset:0;background:radial-gradient(ellipse 80% 65% at 50% 45%,rgba(80,20,180,0.22) 0%,transparent 70%);}
+#s8 .decision-content{position:relative;text-align:center;width:100%;}
+.vs-row{display:flex;align-items:center;justify-content:center;gap:0;margin-bottom:28px;}
+.vs-avatar{width:74px;height:74px;border-radius:50%;background:#141414;border:1px solid rgba(107,47,212,0.55);display:flex;align-items:center;justify-content:center;font-size:32px;}
+.vs-middle{display:flex;flex-direction:column;align-items:center;padding:0 16px;gap:5px;}
+.vs-dots{display:flex;gap:3px;}
+.vs-dots span{width:4px;height:4px;border-radius:50%;}
+.vs-label{font-size:11px;color:rgba(255,255,255,0.2);letter-spacing:0.1em;}
+.status-cards{display:flex;gap:12px;margin-bottom:36px;justify-content:center;}
+.status-card{
+  background:#141414;border:1px solid rgba(255,255,255,0.07);
+  border-radius:12px;padding:10px 18px;text-align:center;min-width:120px;
+}
+.status-card .sc-name{font-size:10px;color:rgba(255,255,255,0.3);margin-bottom:5px;}
+.status-card .sc-status{font-size:12px;color:rgba(255,255,255,0.3);}
+.status-card .sc-status.accepted{color:#7B3FE4;}
+.decision-btns{display:flex;flex-direction:column;gap:12px;width:100%;}
+.btn-reveal{
+  background:linear-gradient(135deg,#6B2FD4,#4A1FA8);border:none;
+  color:#fff;padding:18px;border-radius:18px;font-size:16px;font-weight:500;
+  cursor:pointer;font-family:inherit;letter-spacing:0.02em;
+}
+.btn-decline{
+  background:transparent;border:1px solid rgba(255,255,255,0.1);
+  color:rgba(255,255,255,0.45);padding:16px;border-radius:18px;
+  font-size:15px;cursor:pointer;font-family:inherit;
+}
+
+/* ── SCREEN 9: WAITING ── */
+#s9{background:#0D0D0D;align-items:center;justify-content:center;}
+#s9 .bg-glow{position:absolute;inset:0;background:radial-gradient(ellipse 65% 65% at 50% 50%,rgba(107,47,212,0.12) 0%,transparent 70%);}
+#s9 .wait-content{position:relative;text-align:center;padding:0 40px;}
+.wait-avatar-wrap{position:relative;width:92px;height:92px;margin:0 auto 32px;}
+.wait-ring{position:absolute;border-radius:50%;}
+.wait-ring.r1{inset:-18px;border:1px solid rgba(107,47,212,0.25);animation:ping 1.9s ease-out infinite;}
+.wait-ring.r2{inset:-9px;border:1px solid rgba(107,47,212,0.42);animation:ping 1.9s ease-out infinite 0.45s;}
+.wait-avatar-inner{width:92px;height:92px;border-radius:50%;background:#141414;border:1px solid rgba(107,47,212,0.65);display:flex;align-items:center;justify-content:center;font-size:38px;}
+
+/* ── SCREEN 10: REVEAL MOMENT ── */
+#s10{background:#0A0A0A;}
+#s10 .reveal-video{position:relative;flex:1;overflow:hidden;}
+#s10 .rv-bg{position:absolute;inset:0;background:#0A0A0A;display:flex;align-items:center;justify-content:center;}
+#s10 .rv-glow{position:absolute;inset:0;background:radial-gradient(ellipse 80% 72% at 50% 40%,#1C1040 0%,#0A0A0A 100%);}
+.reveal-profile{position:relative;text-align:center;animation:appear 0.6s ease-out forwards;}
+.reveal-avatar{
+  width:134px;height:134px;border-radius:50%;
+  background:linear-gradient(135deg,#2D1A5A,#4A2095);
+  border:2px solid rgba(107,47,212,0.85);
+  margin:0 auto 16px;display:flex;align-items:center;justify-content:center;
+  font-size:58px;animation:pop-in 0.7s cubic-bezier(0.34,1.56,0.64,1) 0.25s both;
+}
+.reveal-name{font-size:23px;font-weight:400;color:#fff;animation:fade-up 0.5s ease-out 0.7s both;}
+.reveal-city{font-size:13px;color:rgba(107,47,212,0.85);margin-top:5px;animation:fade-up 0.5s ease-out 0.85s both;}
+.reveal-bio{font-size:13px;color:rgba(255,255,255,0.38);margin-top:4px;animation:fade-up 0.5s ease-out 0.95s both;}
+.reveal-badge{
+  position:absolute;top:0;left:0;right:0;text-align:center;padding:22px 0;
+  animation:fade-up 0.5s ease-out 0.15s both;
+}
+.reveal-badge-inner{
+  display:inline-block;background:rgba(0,0,0,0.65);
+  border:1px solid rgba(107,47,212,0.55);border-radius:100px;padding:7px 22px;
+}
+.reveal-badge-text{font-size:11px;letter-spacing:0.25em;color:#9B6FE4;text-transform:uppercase;}
+.reveal-self-view{
+  position:absolute;bottom:20px;right:16px;width:80px;height:110px;
+  border-radius:16px;background:#1A1040;border:1px solid rgba(107,47,212,0.55);
+  display:flex;align-items:center;justify-content:center;flex-direction:column;gap:5px;
+  animation:fade-in 0.8s ease-out 0.5s both;
+}
+#s10 .reveal-actions{background:#0D0D0D;padding:20px 20px 32px;border-top:1px solid rgba(255,255,255,0.05);}
+.action-row{display:flex;gap:10px;}
+.btn-continue{flex:1;background:linear-gradient(135deg,#6B2FD4,#4A1FA8);border:none;color:#fff;padding:15px;border-radius:14px;font-size:14px;font-weight:500;cursor:pointer;font-family:inherit;}
+.btn-save{width:50px;height:50px;background:#141414;border:1px solid rgba(255,255,255,0.1);border-radius:14px;font-size:22px;cursor:pointer;}
+
+/* ── SCREEN 11: DECLINED ── */
+#s11{background:#0D0D0D;align-items:center;justify-content:center;padding:0 36px;}
+#s11 .bg-glow{position:absolute;inset:0;background:radial-gradient(ellipse 60% 55% at 50% 50%,rgba(50,15,100,0.16) 0%,transparent 70%);}
+#s11 .declined-content{position:relative;text-align:center;}
+
+/* ── SCREEN 12: CHAT ── */
+#s12{background:#0D0D0D;}
+#s12 .chat-header{padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:space-between;}
+#s12 .chat-messages{flex:1;overflow-y:auto;padding:18px 16px;display:flex;flex-direction:column;gap:12px;}
+.chat-bubble{max-width:75%;}
+.bubble-text{padding:12px 16px;border-radius:18px;font-size:14px;line-height:1.5;color:#fff;}
+.bubble-mine .bubble-text{background:rgba(107,47,212,0.32);border:1px solid rgba(107,47,212,0.45);border-radius:18px 18px 4px 18px;}
+.bubble-theirs .bubble-text{background:#1A1A1A;border:1px solid rgba(255,255,255,0.07);border-radius:18px 18px 18px 4px;}
+.bubble-mine{align-self:flex-end;}
+.bubble-theirs{align-self:flex-start;}
+.bubble-time{font-size:11px;color:rgba(255,255,255,0.2);margin-top:4px;}
+.bubble-mine .bubble-time{text-align:right;padding-right:4px;}
+.bubble-theirs .bubble-time{padding-left:4px;}
+.system-msg{text-align:center;}
+.system-msg span{font-size:11px;color:rgba(255,255,255,0.22);background:#141414;padding:4px 12px;border-radius:100px;}
+.system-msg span.accent{color:rgba(107,47,212,0.75);background:rgba(107,47,212,0.1);border:1px solid rgba(107,47,212,0.22);}
+#s12 .chat-input-row{padding:12px 16px 30px;border-top:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:10px;}
+#chat-input{flex:1;background:#141414;border:1px solid rgba(255,255,255,0.09);border-radius:100px;padding:12px 18px;color:#fff;font-size:14px;outline:none;font-family:inherit;}
+#chat-input::placeholder{color:rgba(255,255,255,0.25);}
+.send-btn{width:44px;height:44px;background:rgba(107,47,212,0.5);border:1px solid rgba(107,47,212,0.65);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px;flex-shrink:0;}
+
+/* ── SCREEN 13: MAIN MENU ── */
+#s13{background:#0D0D0D;}
+#s13 .menu-header{padding:28px 24px 16px;}
+#s13 .conversations{padding:0 16px;display:flex;flex-direction:column;gap:2px;}
+.conv-item{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:16px;cursor:pointer;background:#111;margin-bottom:4px;}
+.conv-item.active{background:#141414;border:1px solid rgba(107,47,212,0.32);}
+.conv-avatar{position:relative;width:50px;height:50px;border-radius:50%;background:#1A1A1A;border:1px solid rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+.conv-avatar.highlighted{border-color:rgba(107,47,212,0.55);}
+.online-dot{position:absolute;bottom:0;right:0;width:13px;height:13px;background:#7B3FE4;border-radius:50%;border:2px solid #0D0D0D;}
+.conv-body{flex:1;min-width:0;}
+.conv-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;}
+.conv-name{color:#fff;font-size:14px;font-weight:500;}
+.conv-time{font-size:11px;color:rgba(255,255,255,0.25);}
+.conv-preview{color:rgba(255,255,255,0.35);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tab-bar{margin-top:auto;border-top:1px solid rgba(255,255,255,0.06);padding:0 8px 32px;display:flex;}
+.tab-btn{flex:1;background:transparent;border:none;color:rgba(255,255,255,0.35);padding:14px 8px;font-size:10px;letter-spacing:0.05em;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:6px;}
+.tab-btn.active-tab{color:#7B3FE4;}
+.tab-icon{font-size:20px;}
+</style>
+</head>
+<body>
+
+<div style="position:relative">
+<div class="phone">
+
+  <!-- Dynamic Island -->
+  <div class="dynamic-island"></div>
+
+  <!-- Status Bar -->
+  <div class="status-bar">
+    <span class="time">9:41</span>
+    <div class="status-icons">
+      <svg width="17" height="12" viewBox="0 0 17 12"><rect x="0" y="3" width="3" height="9" rx="1" fill="white" opacity="0.4"/><rect x="4" y="2" width="3" height="10" rx="1" fill="white" opacity="0.6"/><rect x="8" y="0" width="3" height="12" rx="1" fill="white" opacity="0.8"/><rect x="12" y="0" width="3" height="12" rx="1" fill="white"/></svg>
+      <svg width="16" height="12" viewBox="0 0 16 12"><path d="M8 2C10.5 2 12.7 3.1 14.2 4.8L15.5 3.4C13.7 1.3 11 0 8 0 5 0 2.3 1.3 0.5 3.4L1.8 4.8C3.3 3.1 5.5 2 8 2Z" fill="white"/><path d="M8 5C9.7 5 11.2 5.8 12.2 7L13.5 5.6C12.2 4.1 10.2 3.1 8 3.1 5.8 3.1 3.8 4.1 2.5 5.6L3.8 7C4.8 5.8 6.3 5 8 5Z" fill="white"/><circle cx="8" cy="10" r="2" fill="white"/></svg>
+      <div style="display:flex;align-items:center;gap:2px"><div style="width:22px;height:11px;border:1.5px solid rgba(255,255,255,0.4);border-radius:3px;padding:1.5px"><div style="background:#fff;height:100%;width:75%;border-radius:1.5px"></div></div></div>
+    </div>
+  </div>
+
+  <!-- Screen Area -->
+  <div class="screen-area">
+
+    <!-- ══ SCREEN 1: SPLASH ══ -->
+    <div class="screen active" id="s1">
+      <div class="bg-glow"></div>
+      <div class="mask-icon">🎭</div>
+      <div class="tagline-wrap">
+        <div class="app-label">REVEAL</div>
+        <div class="tagline">"Karaktere önem verenler<br>gerçeği görür."</div>
+      </div>
+      <button class="cta-btn" onclick="goTo('s2')">Devam et</button>
+    </div>
+
+    <!-- ══ SCREEN 2: ONBOARDING ══ -->
+    <div class="screen" id="s2">
+      <div class="bg-glow"></div>
+      <div class="ob-body">
+        <div class="ob-icon" id="ob-icon">🎭</div>
+        <div class="ob-title" id="ob-title">Kim olduğunu değil,<br>nasıl hissettirdiğini göster</div>
+        <div class="ob-sub" id="ob-sub"></div>
+        <div class="ob-dots">
+          <div class="ob-dot active" id="d0"></div>
+          <div class="ob-dot" id="d1"></div>
+          <div class="ob-dot" id="d2"></div>
+        </div>
+      </div>
+      <div class="ob-footer">
+        <button class="ob-btn" id="ob-btn" onclick="nextOnboard()">Devam →</button>
+      </div>
+    </div>
+
+    <!-- ══ SCREEN 3: MASK SELECTION ══ -->
+    <div class="screen" id="s3">
+      <div class="header">
+        <div class="section-label">Maskeni seç</div>
+        <div class="section-title">Seni en iyi hangisi temsil ediyor?</div>
+      </div>
+      <div class="mask-grid">
+        <div class="mask-card" onclick="selectMask(this)"><div class="mc-icon">🖤</div><div class="mc-name">Gececi</div><div class="mc-desc">Derin konuşur, saat fark etmez</div></div>
+        <div class="mask-card" onclick="selectMask(this)"><div class="mc-icon">⚡</div><div class="mc-name">Kaotik</div><div class="mc-desc">Enerjisi yüksek, tahmin edilemez</div></div>
+        <div class="mask-card" onclick="selectMask(this)"><div class="mc-icon">🧠</div><div class="mc-name">Filozof</div><div class="mc-desc">Düşündürür, sorular sorar</div></div>
+        <div class="mask-card" onclick="selectMask(this)"><div class="mc-icon">🌙</div><div class="mc-name">Romantik</div><div class="mc-desc">Şiirsel, duygu yüklü</div></div>
+        <div class="mask-card" onclick="selectMask(this)"><div class="mc-icon">🔭</div><div class="mc-name">Gözlemci</div><div class="mc-desc">Sessiz ama keskin, her şeyi görür</div></div>
+        <div class="mask-card" onclick="selectMask(this)"><div class="mc-icon">🔥</div><div class="mc-name">İsyankâr</div><div class="mc-desc">Kurallara uymaz, sınırları zorlar</div></div>
+      </div>
+      <div class="mask-footer">
+        <button id="mask-confirm-btn" onclick="goTo('s4')">Bu benim</button>
+      </div>
+    </div>
+
+    <!-- ══ SCREEN 4: SPARK QUESTION ══ -->
+    <div class="screen" id="s4">
+      <div class="bg-glow"></div>
+      <div class="spark-wrap">
+        <div class="section-label">Kıvılcım sorusu</div>
+        <div class="question-card"><p>"Seni en son ne gerçekten etkiledi?"</p></div>
+        <textarea id="spark-input" placeholder="Cevabını yaz..." maxlength="150" oninput="updateCount(this)"></textarea>
+        <div class="char-row"><span id="char-count">0 / 150</span></div>
+        <button class="primary-btn" onclick="startMatching()">Eşleşmeye başla →</button>
+      </div>
+    </div>
+
+    <!-- ══ SCREEN 5: SEARCHING ══ -->
+    <div class="screen" id="s5">
+      <div class="bg-glow"></div>
+      <div class="pulse-wrap">
+        <div class="pulse-ring r1"></div>
+        <div class="pulse-ring r2"></div>
+        <div class="pulse-inner">🎭</div>
+      </div>
+      <div class="search-text">Seninle aynı<br>frekansta biri<br>aranıyor...</div>
+      <div class="dot-loader"><span></span><span></span><span></span></div>
+      <button class="cancel-btn" onclick="goTo('s4')">İptal et</button>
+    </div>
+
+    <!-- ══ SCREEN 6: MATCH FOUND ══ -->
+    <div class="screen" id="s6">
+      <div class="bg-glow"></div>
+      <div class="match-content">
+        <div class="section-label">Eşleşme Bulundu</div>
+        <div class="avatar">🎭</div>
+        <div class="match-name">Gececi #7734</div>
+        <div class="match-sub">İstanbul · Aktif şimdi</div>
+        <div class="spark-preview">
+          <div class="sp-label">Kıvılcım yanıtı</div>
+          <div class="sp-text">"Bir arkadaşımın geçen hafta söylediği tek bir cümle. Hâlâ zihnimde."</div>
+        </div>
+        <div class="btn-row">
+          <button class="primary-btn" onclick="startCall()">Sohbete Başla →</button>
+          <button style="background:transparent;border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.4);padding:14px;border-radius:16px;font-size:14px;cursor:pointer;font-family:inherit;margin-top:10px;width:100%;" onclick="startMatching()">Geç</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SCREEN 7: MASKED VIDEO CALL ══ -->
+    <div class="screen" id="s7">
+      <div class="video-area">
+        <div class="remote-bg">
+          <div class="remote-glow"></div>
+          <div class="remote-silhouette">
+            <div class="silhouette-avatar">
+              <svg width="54" height="62" viewBox="0 0 52 60" fill="none"><ellipse cx="26" cy="20" rx="16" ry="18" fill="rgba(107,47,212,0.28)"/><path d="M2 58c0-16 10-26 24-26s24 10 24 26" stroke="rgba(107,47,212,0.32)" stroke-width="1.5" fill="none"/></svg>
+            </div>
+            <div class="remote-label">Görüntü kapalı</div>
+          </div>
+          <div class="remote-overlay"></div>
+        </div>
+
+        <div class="call-topbar">
+          <div class="caller-info">
+            <div class="caller-mask">🖤</div>
+            <div>
+              <div class="caller-name">Gececi #7734</div>
+              <div class="caller-status"><div class="status-dot"></div><span class="status-text">Bağlandı</span></div>
+            </div>
+          </div>
+          <div class="call-timer">
+            <div class="rec-dot"></div>
+            <span id="vc-time">05:00</span>
+          </div>
+        </div>
+
+        <div class="self-view">
+          <svg width="28" height="34" viewBox="0 0 52 60" fill="none"><ellipse cx="26" cy="20" rx="16" ry="18" fill="rgba(107,47,212,0.42)"/><path d="M2 58c0-16 10-26 24-26s24 10 24 26" stroke="rgba(107,47,212,0.42)" stroke-width="1.5" fill="none"/></svg>
+          <div class="self-view-label">Sen</div>
+          <div style="font-size:18px;">🎭</div>
+        </div>
+
+        <div class="reveal-hint" id="reveal-hint">
+          <span class="rh-label">Reveal için </span>
+          <span class="rh-time" id="rh-time">1:00</span>
+          <span class="rh-label"> kaldı</span>
+        </div>
+      </div>
+
+      <div class="call-controls">
+        <div class="controls-row">
+          <button class="ctrl-btn" style="font-size:20px;">🎙️</button>
+          <button class="ctrl-btn" style="font-size:20px;">📷</button>
+          <button class="ctrl-btn danger" onclick="goTo('s8')" style="font-size:22px;color:#fff;">✕</button>
+          <button class="ctrl-btn" style="font-size:20px;">💬</button>
+          <button class="ctrl-btn reveal" onclick="goTo('s8')" style="font-size:20px;">🎭</button>
+        </div>
+        <div class="ctrl-labels">
+          <span class="ctrl-label" style="width:56px;">Ses</span>
+          <span class="ctrl-label" style="width:56px;">Kamera</span>
+          <span class="ctrl-label" style="width:64px;">Kapat</span>
+          <span class="ctrl-label" style="width:56px;">Mesaj</span>
+          <span class="ctrl-label highlight" style="width:56px;">Reveal</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SCREEN 8: REVEAL DECISION ══ -->
+    <div class="screen" id="s8">
+      <div class="bg-glow"></div>
+      <div class="decision-content">
+        <div class="vs-row">
+          <div class="vs-avatar">🎭</div>
+          <div class="vs-middle">
+            <div class="vs-dots">
+              <span style="background:rgba(107,47,212,0.7)"></span>
+              <span style="background:rgba(107,47,212,0.45)"></span>
+              <span style="background:rgba(107,47,212,0.2)"></span>
+            </div>
+            <div class="vs-label">VS</div>
+          </div>
+          <div class="vs-avatar">🖤</div>
+        </div>
+        <div class="section-label" style="color:#6B3FD4;letter-spacing:0.25em;margin-bottom:16px;">Süre Doldu</div>
+        <div style="font-size:28px;font-weight:300;color:#fff;line-height:1.35;margin-bottom:10px;">Görüntüleriniz<br>açılsın mı?</div>
+        <div style="font-size:13px;color:rgba(255,255,255,0.3);line-height:1.65;margin-bottom:18px;">İki taraf da kabul ederse<br>kameralar açılır. Tek taraf yetmez.</div>
+        <div class="status-cards">
+          <div class="status-card"><div class="sc-name">Sen</div><div class="sc-status" id="my-decision">Bekliyor...</div></div>
+          <div class="status-card"><div class="sc-name">Gececi #7734</div><div class="sc-status" id="their-decision">Karar veriyor...</div></div>
+        </div>
+        <div class="decision-btns">
+          <button class="btn-reveal" onclick="acceptReveal()">🎭 Evet, görüntümü aç</button>
+          <button class="btn-decline" onclick="goTo('s11')">Hayır, geçeyim</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SCREEN 9: WAITING FOR OTHER ══ -->
+    <div class="screen" id="s9">
+      <div class="bg-glow"></div>
+      <div class="wait-content">
+        <div class="wait-avatar-wrap">
+          <div class="wait-ring r1"></div>
+          <div class="wait-ring r2"></div>
+          <div class="wait-avatar-inner">✓</div>
+        </div>
+        <div class="section-label" style="color:#6B3FD4;letter-spacing:0.2em;margin-bottom:14px;">Kararın alındı</div>
+        <div style="font-size:20px;font-weight:300;color:#fff;line-height:1.55;margin-bottom:10px;">Diğeri karar<br>veriyor...</div>
+        <div style="font-size:13px;color:rgba(255,255,255,0.26);margin-bottom:32px;">Her iki taraf da onaylarsa<br>görüntüler açılacak</div>
+        <div class="dot-loader"><span></span><span></span><span></span></div>
+      </div>
+    </div>
+
+    <!-- ══ SCREEN 10: REVEAL MOMENT ══ -->
+    <div class="screen" id="s10">
+      <div class="reveal-video">
+        <div class="rv-bg">
+          <div class="rv-glow"></div>
+          <div class="reveal-profile">
+            <div class="reveal-avatar">👤</div>
+            <div class="reveal-name">Zeynep K.</div>
+            <div class="reveal-city">İstanbul · Gececi</div>
+            <div class="reveal-bio">24 yaş · Müzisyen</div>
+          </div>
+        </div>
+        <div class="reveal-badge">
+          <div class="reveal-badge-inner">
+            <span class="reveal-badge-text">✨ Reveal Anı</span>
+          </div>
+        </div>
+        <div class="reveal-self-view">
+          <div style="font-size:28px;">👤</div>
+          <div style="font-size:9px;color:rgba(107,47,212,0.75);">Sen</div>
+        </div>
+      </div>
+      <div class="reveal-actions">
+        <div class="action-row">
+          <button class="btn-continue" onclick="goTo('s12')">Sohbete devam et</button>
+          <button class="btn-save">🤍</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SCREEN 11: DECLINED ══ -->
+    <div class="screen" id="s11">
+      <div class="bg-glow"></div>
+      <div class="declined-content">
+        <div style="font-size:58px;margin-bottom:26px;opacity:0.38;">🎭</div>
+        <div class="section-label" style="color:#6B3FD4;letter-spacing:0.22em;margin-bottom:14px;">Sohbet Bitti</div>
+        <div style="font-size:23px;font-weight:300;color:#fff;line-height:1.45;margin-bottom:10px;">Maskeler kaldı</div>
+        <div style="font-size:14px;color:rgba(255,255,255,0.3);line-height:1.65;margin-bottom:44px;">Her şey tamam. Bazı<br>konuşmalar bu kadar.</div>
+        <button class="primary-btn" style="margin-bottom:10px;" onclick="startMatching()">Yeni Eşleşme</button>
+        <button style="background:transparent;border:none;color:rgba(255,255,255,0.25);font-size:13px;cursor:pointer;font-family:inherit;padding:8px;display:block;width:100%;" onclick="goTo('s13')">Ana menüye dön</button>
+      </div>
+    </div>
+
+    <!-- ══ SCREEN 12: POST-REVEAL CHAT ══ -->
+    <div class="screen" id="s12">
+      <div class="chat-header">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:40px;height:40px;background:#1A1040;border:1px solid rgba(107,47,212,0.55);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;">👤</div>
+          <div>
+            <div style="color:#fff;font-size:14px;font-weight:500;">Zeynep K.</div>
+            <div style="color:rgba(107,47,212,0.85);font-size:11px;">İstanbul · Müzisyen</div>
+          </div>
+        </div>
+        <button onclick="goTo('s13')" style="background:transparent;border:none;color:rgba(255,255,255,0.3);font-size:13px;cursor:pointer;font-family:inherit;">Ana Menü</button>
+      </div>
+      <div class="chat-messages" id="chat-messages">
+        <div class="system-msg"><span>Reveal tamamlandı ✨</span></div>
+        <div class="chat-bubble bubble-theirs">
+          <div class="bubble-text">Şaşırdım açıkçası. Güzel bir surprise oldu 😄</div>
+          <div class="bubble-time">22:14</div>
+        </div>
+        <div class="chat-bubble bubble-mine">
+          <div class="bubble-text">Ben de öyle! Sesinden tahmin etmeye çalışıyordum.</div>
+          <div class="bubble-time">22:15</div>
+        </div>
+        <div class="chat-bubble bubble-theirs">
+          <div class="bubble-text">Haha, nasıl hayal etmiştin?</div>
+          <div class="bubble-time">22:15</div>
+        </div>
+      </div>
+      <div class="chat-input-row">
+        <input type="text" id="chat-input" placeholder="Mesaj yaz..." onkeydown="if(event.key==='Enter')sendMsg()">
+        <button class="send-btn" onclick="sendMsg()">→</button>
+      </div>
+    </div>
+
+    <!-- ══ SCREEN 13: MAIN MENU ══ -->
+    <div class="screen" id="s13">
+      <div class="menu-header">
+        <div class="section-label">Sohbetler</div>
+        <div class="section-title" style="font-size:21px;font-weight:300;color:#fff;">Maskeli konuşmalar</div>
+      </div>
+      <div class="conversations">
+        <div class="conv-item active" onclick="goTo('s12')">
+          <div class="conv-avatar highlighted">👤<div class="online-dot"></div></div>
+          <div class="conv-body">
+            <div class="conv-row"><span class="conv-name">Zeynep K.</span><span class="conv-time">az önce</span></div>
+            <div class="conv-preview">Haha, nasıl hayal etmiştin? ✨</div>
+          </div>
+        </div>
+        <div class="conv-item">
+          <div class="conv-avatar">⚡</div>
+          <div class="conv-body">
+            <div class="conv-row"><span class="conv-name">Anonim #2193</span><span class="conv-time">2s önce</span></div>
+            <div class="conv-preview">Dün gece iyi konuştuk...</div>
+          </div>
+        </div>
+        <div class="conv-item">
+          <div class="conv-avatar">🧠</div>
+          <div class="conv-body">
+            <div class="conv-row"><span class="conv-name">Anonim #0087</span><span class="conv-time">4s önce</span></div>
+            <div class="conv-preview">Reveal bekleniyor...</div>
+          </div>
+        </div>
+        <div class="conv-item">
+          <div class="conv-avatar">🌙</div>
+          <div class="conv-body">
+            <div class="conv-row"><span class="conv-name">Anonim #5512</span><span class="conv-time">1g önce</span></div>
+            <div class="conv-preview">Güzel bir konuşmaydı.</div>
+          </div>
+        </div>
+      </div>
+      <div class="tab-bar">
+        <button class="tab-btn" onclick="startMatching()"><div class="tab-icon">🎭</div>Match</button>
+        <button class="tab-btn active-tab"><div class="tab-icon">💬</div>Sohbetler</button>
+        <button class="tab-btn"><div class="tab-icon">👤</div>Profil</button>
+      </div>
+    </div>
+
+  </div><!-- /screen-area -->
+
+  <div class="home-indicator"><div></div></div>
+</div><!-- /phone -->
+
+<!-- Navigation Sidebar -->
+<div class="nav-sidebar" id="nav-sidebar">
+  <div class="nav-btn" onclick="goTo('s1')">① Splash</div>
+  <div class="nav-btn" onclick="goTo('s2')">② Onboarding</div>
+  <div class="nav-btn" onclick="goTo('s3')">③ Maske Seç</div>
+  <div class="nav-btn" onclick="goTo('s4')">④ Kıvılcım</div>
+  <div class="nav-btn" onclick="startMatching()">⑤ Arama</div>
+  <div class="nav-btn" onclick="goTo('s6')">⑥ Eşleşme Bulundu</div>
+  <div class="nav-btn" onclick="startCall()">⑦ Maskeli Görüşme</div>
+  <div class="nav-btn" onclick="goTo('s8')">⑧ Reveal Kararı</div>
+  <div class="nav-btn" onclick="acceptReveal()">⑨ Bekleme</div>
+  <div class="nav-btn" onclick="goTo('s10')">⑩ Reveal Anı ✨</div>
+  <div class="nav-btn" onclick="goTo('s11')">⑪ Reddedildi</div>
+  <div class="nav-btn" onclick="goTo('s12')">⑫ Sohbet</div>
+  <div class="nav-btn" onclick="goTo('s13')">⑬ Ana Menü</div>
+</div>
+
+</div><!-- /wrapper -->
+
+<script>
+/* ── STATE ── */
+let vcInterval = null;
+let vcSecs = 300;
+let matchTimer = null;
+let obStep = 0;
+const obData = [
+  {icon:'🎭', title:'Kim olduğunu değil,<br>nasıl hissettirdiğini göster', sub:''},
+  {icon:'⏱️', title:'Önce konuş.<br>Sonra gör.', sub:'Her eşleşmede sınırlı süre var. Zamanı iyi kullan.'},
+  {icon:'✨', title:'Reveal sadece<br>hak edenlere.', sub:'Her iki taraf da isterse maskeler düşer. Başka yol yok.'}
+];
+
+/* ── NAVIGATION ── */
+function goTo(id) {
+  clearInterval(vcInterval);
+  clearTimeout(matchTimer);
+  document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
+  const el = document.getElementById(id);
+  el.style.display = 'flex';
+
+  // Update nav highlight
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('current'));
+  const idx = {'s1':0,'s2':1,'s3':2,'s4':3,'s5':4,'s6':5,'s7':6,'s8':7,'s9':8,'s10':9,'s11':10,'s12':11,'s13':12};
+  const navBtns = document.querySelectorAll('.nav-btn');
+  if (idx[id] !== undefined) navBtns[idx[id]].classList.add('current');
+}
+
+/* ── ONBOARDING ── */
+function nextOnboard() {
+  obStep++;
+  if (obStep >= obData.length) { goTo('s3'); return; }
+  const icon = document.getElementById('ob-icon');
+  const title = document.getElementById('ob-title');
+  const sub = document.getElementById('ob-sub');
+  icon.style.opacity = '0'; title.style.opacity = '0'; sub.style.opacity = '0';
+  setTimeout(() => {
+    const d = obData[obStep];
+    icon.textContent = d.icon;
+    title.innerHTML = d.title;
+    sub.textContent = d.sub;
+    ['d0','d1','d2'].forEach((id,i) => {
+      const dot = document.getElementById(id);
+      dot.classList.toggle('active', i === obStep);
+    });
+    if (obStep === 2) document.getElementById('ob-btn').textContent = 'Başla →';
+    icon.style.opacity = '1'; title.style.opacity = '1'; sub.style.opacity = '1';
+  }, 280);
+}
+
+/* ── MASK SELECTION ── */
+function selectMask(el) {
+  document.querySelectorAll('.mask-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  const btn = document.getElementById('mask-confirm-btn');
+  btn.classList.add('enabled');
+}
+
+/* ── SPARK ── */
+function updateCount(el) {
+  document.getElementById('char-count').textContent = el.value.length + ' / 150';
+}
+
+/* ── MATCHING FLOW ── */
+function startMatching() {
+  goTo('s5');
+  matchTimer = setTimeout(() => { goTo('s6'); }, 3000);
+}
+
+/* ── VIDEO CALL ── */
+function startCall() {
+  goTo('s7');
+  vcSecs = 300;
+  updateVCDisplay();
+  document.getElementById('reveal-hint').style.opacity = '0';
+  clearInterval(vcInterval);
+  vcInterval = setInterval(() => {
+    vcSecs--;
+    updateVCDisplay();
+    if (vcSecs === 60) {
+      document.getElementById('reveal-hint').style.opacity = '1';
+    }
+    if (vcSecs <= 0) {
+      clearInterval(vcInterval);
+      goTo('s8');
+    }
+  }, 1000);
+}
+
+function updateVCDisplay() {
+  const m = Math.floor(vcSecs / 60);
+  const s = vcSecs % 60;
+  const el = document.getElementById('vc-time');
+  if (el) el.textContent = String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+  const rh = document.getElementById('rh-time');
+  if (rh) rh.textContent = String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+}
+
+/* ── REVEAL DECISION ── */
+function acceptReveal() {
+  const myD = document.getElementById('my-decision');
+  if (myD) { myD.textContent = '✓ Kabul'; myD.classList.add('accepted'); }
+  goTo('s9');
+  setTimeout(() => { goTo('s10'); }, 2800);
+}
+
+/* ── CHAT ── */
+function sendMsg() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+  const msgs = document.getElementById('chat-messages');
+  const now = new Date();
+  const time = now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0');
+  const bubble = document.createElement('div');
+  bubble.className = 'chat-bubble bubble-mine';
+  bubble.innerHTML = '<div class="bubble-text">' + text + '</div><div class="bubble-time">' + time + '</div>';
+  msgs.appendChild(bubble);
+  msgs.scrollTop = msgs.scrollHeight;
+  input.value = '';
+
+  // Auto-reply after 1.2s
+  setTimeout(() => {
+    const replies = [
+      "Çok güzel bir bakış açısı...",
+      "Hiç bu şekilde düşünmemiştim.",
+      "Seninle konuşmak farklı.",
+      "Devam et, dinliyorum.",
+      "Bu soruyu kendime de sormam lazım."
+    ];
+    const reply = replies[Math.floor(Math.random() * replies.length)];
+    const rb = document.createElement('div');
+    rb.className = 'chat-bubble bubble-theirs';
+    rb.innerHTML = '<div class="bubble-text">' + reply + '</div><div class="bubble-time">' + time + '</div>';
+    msgs.appendChild(rb);
+    msgs.scrollTop = msgs.scrollHeight;
+  }, 1200);
+}
+</script>
+</body>
+</html>
