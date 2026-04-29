@@ -1,172 +1,140 @@
-// REVEAL — Node.js + Socket.io Backend
-// Deploy: Render.com (Free tier)
-
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const cors = require('cors');
 
 const app = express();
 const server = http.createServer(app);
+
 const io = new Server(server, {
-  cors: { origin: '*', methods: ['GET', 'POST'] }
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST']
+  }
 });
 
-app.use(cors());
-app.use(express.json());
+app.get('/', (req, res) => res.send('Reveal Backend ✓'));
 
-// ── State ──
-const waitingQueue = [];        // [{socketId, mask, sparkAnswer, joinedAt}]
-const activeRooms  = new Map(); // roomId → {users:[socketId,socketId], revealed:false, createdAt}
-const userRoom     = new Map(); // socketId → roomId
-const userMeta     = new Map(); // socketId → {mask, sparkAnswer}
+// ── QUEUE & ROOMS ──
+const queue = []; // { socketId, mask, sparkAnswer }
+const rooms = {}; // roomId → { players: [sid1, sid2], votes: {} }
 
-// ── Health check ──
-app.get('/', (_, res) => res.send('REVEAL server running ✓'));
-app.get('/status', (_, res) => res.json({
-  waiting: waitingQueue.length,
-  activeRooms: activeRooms.size,
-  connectedUsers: io.engine.clientsCount,
-}));
+function makeRoomId() {
+  return Math.random().toString(36).slice(2, 10);
+}
 
-// ── Socket.io ──
 io.on('connection', (socket) => {
-  console.log(`[+] ${socket.id}`);
+  console.log('connect:', socket.id);
 
-  // 1. User joins queue
+  // ── JOIN QUEUE ──
   socket.on('join_queue', ({ mask, sparkAnswer }) => {
-    userMeta.set(socket.id, { mask, sparkAnswer });
+    // Aynı kişi tekrar join_queue gönderirse öncekini temizle
+    const idx = queue.findIndex(q => q.socketId === socket.id);
+    if (idx !== -1) queue.splice(idx, 1);
 
-    // Remove if already in queue (reconnect case)
-    const idx = waitingQueue.findIndex(u => u.socketId === socket.id);
-    if (idx !== -1) waitingQueue.splice(idx, 1);
+    if (queue.length > 0) {
+      // Eşleşme var
+      const partner = queue.shift();
+      const roomId = makeRoomId();
 
-    // Try to match with someone waiting
-    if (waitingQueue.length > 0) {
-      const partner = waitingQueue.shift();
-
-      const roomId = `room_${Date.now()}_${Math.random().toString(36).slice(2,7)}`;
-      activeRooms.set(roomId, {
-        users: [socket.id, partner.socketId],
-        revealVotes: {},
-        createdAt: Date.now(),
-      });
-      userRoom.set(socket.id, roomId);
-      userRoom.set(partner.socketId, roomId);
+      rooms[roomId] = {
+        players: [socket.id, partner.socketId],
+        votes: {}
+      };
 
       socket.join(roomId);
       io.sockets.sockets.get(partner.socketId)?.join(roomId);
 
-      // Notify both
-      const myMeta    = userMeta.get(socket.id);
-      const theirMeta = userMeta.get(partner.socketId);
-
+      // Her ikisine de matched gönder
       socket.emit('matched', {
         roomId,
-        partnerMask: theirMeta.mask,
-        partnerSpark: theirMeta.sparkAnswer,
-      });
-      io.to(partner.socketId).emit('matched', {
-        roomId,
-        partnerMask: myMeta.mask,
-        partnerSpark: myMeta.sparkAnswer,
+        partnerMask: partner.mask,
+        partnerSpark: partner.sparkAnswer
       });
 
-      console.log(`[match] ${socket.id} ↔ ${partner.socketId} → ${roomId}`);
+      io.to(partner.socketId).emit('matched', {
+        roomId,
+        partnerMask: mask,
+        partnerSpark: sparkAnswer
+      });
+
     } else {
-      waitingQueue.push({ socketId: socket.id, mask, sparkAnswer, joinedAt: Date.now() });
+      // Kuyruğa ekle
+      queue.push({ socketId: socket.id, mask, sparkAnswer });
       socket.emit('waiting');
-      console.log(`[queue] ${socket.id} waiting (queue size: ${waitingQueue.length})`);
     }
   });
 
-  // 2. Chat message
+  // ── SEND MESSAGE ──
   socket.on('send_message', ({ roomId, text }) => {
-    if (!roomId || !text?.trim()) return;
-    const room = activeRooms.get(roomId);
-    if (!room?.users.includes(socket.id)) return;
-
+    if (!rooms[roomId]) return;
     socket.to(roomId).emit('receive_message', {
-      text: text.trim(),
-      ts: Date.now(),
+      text,
+      ts: Date.now()
     });
   });
 
-  // 3. Typing indicator
+  // ── TYPING ──
   socket.on('typing', ({ roomId, isTyping }) => {
+    if (!rooms[roomId]) return;
     socket.to(roomId).emit('partner_typing', { isTyping });
   });
 
-  // 4. Reveal vote
+  // ── REVEAL VOTE ──
   socket.on('reveal_vote', ({ roomId, accept }) => {
-    const room = activeRooms.get(roomId);
+    const room = rooms[roomId];
     if (!room) return;
 
-    room.revealVotes[socket.id] = accept;
+    room.votes[socket.id] = accept;
 
-    // Notify partner of vote (without revealing result yet)
+    // Karşı tarafa "partner_voted" gönder (kabul/ret bilgisi olmadan)
     socket.to(roomId).emit('partner_voted');
 
-    const users = room.users;
-    const bothVoted = users.every(uid => uid in room.revealVotes);
+    const players = room.players;
+    const allVoted = players.every(pid => pid in room.votes);
 
-    if (bothVoted) {
-      const bothAccepted = users.every(uid => room.revealVotes[uid] === true);
-      if (bothAccepted) {
-        // Send each user the other's meta
-        const [a, b] = users;
-        const metaA = userMeta.get(a);
-        const metaB = userMeta.get(b);
-        io.to(a).emit('reveal_result', { accepted: true, partnerMeta: metaB });
-        io.to(b).emit('reveal_result', { accepted: true, partnerMeta: metaA });
-        room.revealed = true;
-      } else {
-        io.to(roomId).emit('reveal_result', { accepted: false });
+    if (allVoted) {
+      const bothAccepted = players.every(pid => room.votes[pid] === true);
+      players.forEach(pid => {
+        io.to(pid).emit('reveal_result', {
+          accepted: bothAccepted,
+          partnerMeta: null // gerçek isim/foto için auth eklenebilir
+        });
+      });
+      // Oyları sıfırla
+      room.votes = {};
+    }
+  });
+
+  // ── LEAVE ROOM ──
+  socket.on('leave_room', ({ roomId }) => {
+    leaveRoom(socket, roomId);
+  });
+
+  // ── DISCONNECT ──
+  socket.on('disconnect', () => {
+    console.log('disconnect:', socket.id);
+
+    // Kuyruktan çıkar
+    const qi = queue.findIndex(q => q.socketId === socket.id);
+    if (qi !== -1) queue.splice(qi, 1);
+
+    // Odadan çıkar ve partnere haber ver
+    for (const roomId of Object.keys(rooms)) {
+      if (rooms[roomId].players.includes(socket.id)) {
+        leaveRoom(socket, roomId);
+        break;
       }
     }
   });
 
-  // 5. Leave room
-  socket.on('leave_room', ({ roomId }) => {
-    cleanupUser(socket, roomId);
-  });
-
-  // 6. Disconnect
-  socket.on('disconnect', () => {
-    console.log(`[-] ${socket.id}`);
-    const roomId = userRoom.get(socket.id);
-    if (roomId) {
-      socket.to(roomId).emit('partner_left');
-      cleanupUser(socket, roomId);
-    }
-    // Remove from queue if waiting
-    const qi = waitingQueue.findIndex(u => u.socketId === socket.id);
-    if (qi !== -1) waitingQueue.splice(qi, 1);
-    userMeta.delete(socket.id);
-  });
+  function leaveRoom(socket, roomId) {
+    const room = rooms[roomId];
+    if (!room) return;
+    socket.to(roomId).emit('partner_left');
+    socket.leave(roomId);
+    delete rooms[roomId];
+  }
 });
 
-function cleanupUser(socket, roomId) {
-  const room = activeRooms.get(roomId);
-  if (room) {
-    // Remove both users from room tracking
-    room.users.forEach(uid => userRoom.delete(uid));
-    activeRooms.delete(roomId);
-  }
-  socket.leave(roomId);
-  userRoom.delete(socket.id);
-}
-
-// Cleanup stale rooms every 10 min
-setInterval(() => {
-  const now = Date.now();
-  for (const [roomId, room] of activeRooms) {
-    if (now - room.createdAt > 60 * 60 * 1000) { // 1 hour
-      activeRooms.delete(roomId);
-      console.log(`[cleanup] stale room ${roomId}`);
-    }
-  }
-}, 10 * 60 * 1000);
-
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`REVEAL server → port ${PORT}`));
+server.listen(PORT, () => console.log(`Reveal backend port ${PORT}`));
